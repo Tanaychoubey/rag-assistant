@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/knowledge_hub"
     REDIS_URL: str = "redis://localhost:6379/0"
     QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_API_KEY: str = ""
     
     # RAG Settings
     UPLOAD_DIR: str = "storage/uploads"

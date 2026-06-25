@@ -12,8 +12,11 @@ from llama_index.vector_stores.qdrant import QdrantVectorStore
 
 from app.core.config import settings
 
-# Initialize Qdrant Client
-qdrant_client_instance = qdrant_client.QdrantClient(url=settings.QDRANT_URL)
+# Initialize Qdrant Client supporting local container or cloud services
+qdrant_client_instance = qdrant_client.QdrantClient(
+    url=settings.QDRANT_URL,
+    api_key=settings.QDRANT_API_KEY if settings.QDRANT_API_KEY else None
+)
 
 # Setup Embeddings lazily to avoid heavy torch/HuggingFace imports on startup
 _embed_model = None
@@ -25,9 +28,8 @@ def get_embed_config():
     if _embed_model is not None:
         return _embed_model, _vector_size, _collection_name
         
-    provider = settings.LLM_PROVIDER.lower()
-    
-    if provider == "gemini" and settings.GEMINI_API_KEY:
+    # Check for direct API key presence first to bypass loading heavy HuggingFace models on serverless/free tiers
+    if settings.GEMINI_API_KEY:
         from llama_index.embeddings.gemini import GeminiEmbedding
         _embed_model = GeminiEmbedding(
             api_key=settings.GEMINI_API_KEY,
@@ -36,7 +38,7 @@ def get_embed_config():
         _vector_size = 768
         _collection_name = "document_chunks_gemini"
         
-    elif provider == "openai" and settings.OPENAI_API_KEY:
+    elif settings.OPENAI_API_KEY:
         from llama_index.embeddings.openai import OpenAIEmbedding
         _embed_model = OpenAIEmbedding(
             api_key=settings.OPENAI_API_KEY,
@@ -46,6 +48,7 @@ def get_embed_config():
         _collection_name = "document_chunks_openai"
         
     else:
+        provider = settings.LLM_PROVIDER.lower()
         if provider == "mock":
             from llama_index.core.embeddings.mock import MockEmbedding
             _embed_model = MockEmbedding(co_dimension=384)
