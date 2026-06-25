@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #f2f2f7; /* iOS Light Gray 6 */
+    color: #1c1c1e; /* iOS Dark Gray 1 */
+    background-image: none;
+  }
+}
+
+/* Frosted glass iMessage-style panels */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02);
+}
+
+.glass-panel-hover:hover {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+}
+
+/* Custom interactive input fields */
+.glass-input {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 0.75rem;
+  color: #1c1c1e;
+  padding: 0.75rem 1rem;
+  outline: none;
+  transition: all 0.15s ease-in-out;
+}
+
+.glass-input:focus {
+  border-color: #007aff; /* iOS System Blue */
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Minimal solid iMessage button styling */
+.btn-primary-glow {
+  background: #007aff; /* iOS System Blue */
+  color: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-primary-glow:hover {
+  background: #0066d6;
+  transform: translateY(-0.5px);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2);
+}
+
+.btn-primary-glow:active {
+  transform: translateY(0);
+}
