@@ -64,7 +64,7 @@ export default function Sidebar({ user, activeTab, onTabChange }: SidebarProps) 
       <div className="p-4 border-t border-black/5 bg-[#f2f2f7]/50 text-center">
         <div className="flex items-center justify-center gap-2 text-[10px] tracking-wider text-[#8e8e93] uppercase font-semibold">
           <ShieldAlert size={12} className="text-[#8e8e93]" />
-          <span>Security Mode: Local</span>
+          <span>Security Mode: {window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'Local' : 'Cloud'}</span>
         </div>
       </div>
     </aside>
