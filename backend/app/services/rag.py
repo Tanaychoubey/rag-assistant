@@ -154,21 +154,11 @@ def get_embed_config():
         _collection_name = "document_chunks_openai"
         
     else:
-        provider = settings.LLM_PROVIDER.lower()
-        if provider == "mock":
-            from llama_index.core.embeddings.mock import MockEmbedding
-            _embed_model = MockEmbedding(co_dimension=384)
-            _vector_size = 384
-            _collection_name = "document_chunks_mock"
-        else:
-            print("Warning: Falling back to local HuggingFaceEmbedding. This requires >512MB RAM.")
-            from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-            _embed_model = HuggingFaceEmbedding(
-                model_name="BAAI/bge-small-en-v1.5",
-                cache_folder="storage/embedding_cache"
-            )
-            _vector_size = 384
-            _collection_name = "document_chunks_huggingface"
+        print("Warning: No cloud embedding API keys (HF_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY) were found. Local embeddings are disabled to prevent out-of-memory crashes on free tiers. Falling back to MockEmbedding.")
+        from llama_index.core.embeddings.mock import MockEmbedding
+        _embed_model = MockEmbedding(co_dimension=384)
+        _vector_size = 384
+        _collection_name = "document_chunks_mock"
             
     return _embed_model, _vector_size, _collection_name
 
