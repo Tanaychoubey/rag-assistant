@@ -270,7 +270,7 @@ async def websocket_chat_endpoint(
                 print(f"Error handling query inside WebSocket session: {e}")
                 await websocket.send_json({
                     "type": "error",
-                    "content": "An internal database error occurred while saving chat details."
+                    "content": f"System Error: {str(e)}"
                 })
             finally:
                 db.close()
