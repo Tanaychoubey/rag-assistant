@@ -33,7 +33,7 @@ def get_embed_config():
         from llama_index.embeddings.gemini import GeminiEmbedding
         _embed_model = GeminiEmbedding(
             api_key=settings.GEMINI_API_KEY,
-            model_name="models/text-embedding-004"
+            model_name="models/embedding-001"
         )
         _vector_size = 768
         _collection_name = "document_chunks_gemini"
