@@ -1,48 +1,49 @@
-# RAG Document QA System
+# 🧠 RAG Document QA System — Knowledge Hub AI Assistant
 
-A production-grade, enterprise-scale SaaS application designed for document ingestion, asynchronous vector embedding indexing, and grounded Retrieval-Augmented Generation (RAG) chat. Users can upload documents (PDF and TXT), view real-time ingestion status and system performance telemetry on a dashboard, and chat with a Groq-powered AI support agent that generates grounded responses complete with exact document page-level citations.
+A production-grade, enterprise-scale SaaS application designed for document ingestion, asynchronous vector embedding indexing, and grounded Retrieval-Augmented Generation (RAG) chat. Users can upload documents (PDF and TXT), view real-time ingestion status and system performance telemetry on a dashboard, and chat with an AI support agent that generates grounded responses complete with exact document page-level citations.
 
 ---
 
 ## 🏗️ Architecture & Technical Stack
 
-The project features a decoupled, multi-service setup optimized for local host development and containerized service bindings:
+The project features a decoupled, multi-service setup optimized for local development and containerized service bindings:
 
 ```mermaid
 graph TD
     Client[React + TS Web Client] <-->|HTTP & WebSockets| API[FastAPI Async Backend]
-    API <-->|SQLAlchemy| DB[(PostgreSQL Database)]
-    API -->|Queue Tasks| Redis[Redis Broker]
-    Celery[Celery Worker] <-->|Ingest Chunks| Redis
-    Celery <-->|Write Vectors| Qdrant[(Qdrant Vector Store)]
-    Celery <-->|Read PDFs| Storage[(Local Storage)]
+    API <-->|SQLAlchemy ORM| DB[(PostgreSQL Database)]
+    API --->|BackgroundTasks| Task[In-Process Document Processing]
+    Task <-->|Write Vectors| Qdrant[(Qdrant Vector Store)]
+    Task <-->|Read PDFs| Storage[(Local Storage)]
     API <-->|Query Vectors| Qdrant
-    API <-->|Groq API| LLM[Groq Llama-3.3-70b]
+    API <-->|API Completion| LLM[Google Gemini / Groq / OpenAI]
 ```
 
 ### Backend (Python & FastAPI)
-*   **FastAPI:** Asynchronous framework handling REST endpoints and real-time streaming over state-aware WebSocket connections (`/api/ws/chat/{conversation_id}`).
-*   **SQLAlchemy ORM:** Relational database integration mapping tables for users, documents, celery job logs, chat messages, and telemetry.
+*   **FastAPI:** Asynchronous web framework handling REST endpoints and real-time streaming over state-aware WebSocket connections (`/api/ws/chat/{conversation_id}`).
+*   **SQLAlchemy ORM:** Relational database integration mapping tables for users, documents, processing jobs, chat messages, and performance telemetry.
 *   **Alembic:** Handles relational database migrations.
 
-### Ingestion & RAG Orchestration (LlamaIndex & Celery)
-*   **Celery + Redis:** Asynchronous background worker queue. When a document is uploaded, Celery parses, chunks, and embeds it without blocking main web threads.
-*   **LlamaIndex:** Framework orchestration.
-*   **HuggingFace Embeddings:** Computes vector representations locally on the host using `BAAI/bge-small-en-v1.5` (producing 384-dimensional cosine similarity vectors).
+### Ingestion & RAG Orchestration (LlamaIndex & BackgroundTasks)
+*   **FastAPI BackgroundTasks:** Replaced heavy Celery/Redis infrastructure with lightweight, in-process async background workers to split and embed files, allowing stable execution under 512MB RAM constraints (e.g. Render Free Tier).
+*   **LlamaIndex:** Framework orchestration for parsing, chunking, indexing, and retrieval.
+*   **Hugging Face Inference API Embeddings:** Generates vector representations using BAAI/bge-small-en-v1.5 (384-dimensional cosine similarity vectors) via Hugging Face Cloud Inference API to bypass heavy local PyTorch dependencies and minimize RAM footprint.
 *   **Qdrant:** Vector Database storing the vectorized chunks and associated metadata (e.g., document ID, page number, original text).
+*   **Async Event Loop Resolution:** Implemented async retrieval (`retriever.aretrieve`) and integrated `AsyncQdrantClient` within the vector store pool to prevent event loop crashes in production.
 
-### Large Language Model (Groq)
-*   **Groq API:** Utilizes the high-speed **`llama-3.3-70b-versatile`** chat completions model.
+### Large Language Model (LLM Providers)
+*   **LLM Providers:** Supports Google Gemini (`models/gemini-1.5-flash`), OpenAI (`gpt-4o-mini`), Groq (`llama-3.3-70b-versatile`), or Ollama for local testing.
 *   **Grounded Prompts:** Strict system constraints prevent model hallucinations. It only uses retrieved vector chunks and falls back to a standardized refusal if context is missing.
-*   **Deterministic Configuration:** Evaluates using `temperature=0.0` to guarantee factual accuracy and prevent text-completion token loops.
+*   **Deterministic Configuration:** Evaluates using `temperature=0.0` to guarantee factual accuracy and prevent text-completion loops.
+*   **Greeting Bypass:** Instantly resolves common conversational greetings (e.g., *"hi"*, *"hello"*) without executing vector queries, saving response latency and API credits.
 
 ### Frontend (React & TypeScript)
 *   **Vite + React + TypeScript:** Highly responsive UI structure compiled cleanly with strict type bindings.
-*   **Tailwind CSS:** Styled with a premium glassmorphic dark-theme design.
+*   **Tailwind CSS:** Styled with a premium glassmorphic dark-and-light-theme design.
 *   **Dynamic Views:**
-    *   **Metrics Dashboard:** Displays KPI statistics, database tables, and Celery job logs.
-    *   **Document Manager:** Drag-and-drop workspace that supports file uploading (up to 20MB), pages/chunks details parsing, and vector data removal actions.
-    *   **AI Support Chat:** Multi-session chat interface with token-by-token text streaming and inline source citations.
+    *   **Metrics Dashboard:** Displays KPI statistics (total documents, total chunks, average latency) and a table of background document processing jobs.
+    *   **Document Manager:** Drag-and-drop workspace that supports file uploading (up to 20MB), page/chunk parsing, and vector deletion actions.
+    *   **AI Support Chat:** Multi-session chat interface with token-by-token text streaming and interactive source citations.
 
 ---
 
@@ -50,9 +51,9 @@ graph TD
 
 The system maintains a clean relational mapping in PostgreSQL:
 
-1.  **User (`users`):** Stores credentials, roles (`ADMIN` or `SUPPORT`), and timestamps.
+1.  **User (`users`):** Stores credentials, roles (`ADMIN` or `SUPPORT_AGENT`), and timestamps.
 2.  **Document (`documents`):** Contains uploaded file paths, metadata, page counts, chunk metrics, and status (`UPLOADED`, `PROCESSING`, `INDEXED`, `FAILED`).
-3.  **ProcessingJob (`processing_jobs`):** Tracks background celery tasks, timestamps, and parsing errors.
+3.  **ProcessingJob (`processing_jobs`):** Tracks background ingestion tasks, execution timestamps, and parsing errors.
 4.  **Conversation (`conversations`):** Organizes user chat sessions.
 5.  **Message (`messages`):** Holds chat messages, roles (`USER` / `ASSISTANT`), content text, and a JSONB list of cited vector sources.
 6.  **RetrievalLog & AIResponseLog (`retrieval_logs`, `ai_response_logs`):** Stores performance telemetry (database query latency, LLM generation time, token counts).
@@ -61,17 +62,16 @@ The system maintains a clean relational mapping in PostgreSQL:
 
 ## 🚀 Running the Application Locally
 
-The infrastructure (PostgreSQL, Redis, Qdrant) is fully containerized under Docker Compose, while application servers run locally on the host to support hot-reloading.
+The infrastructure (PostgreSQL, Qdrant) is fully containerized under Docker Compose, while application servers run locally on the host to support hot-reloading.
 
 ### 1. Prerequisites
 Ensure you have Docker, Python 3.12+, and Node.js 20+ installed.
 
 ### 2. Start Infrastructure Containers
-In the root directory, spin up Redis and Qdrant:
+In the root directory, spin up PostgreSQL and Qdrant:
 ```bash
-docker compose up redis qdrant -d
+docker compose up db qdrant -d
 ```
-*(Note: Relational data is backed by Supabase via transaction poolers on port `6543`, so you do not need to run a local PostgreSQL container).*
 
 ### 3. Launch Backend API Server
 Navigate to the backend directory, install python dependencies, and launch Uvicorn:
@@ -104,12 +104,3 @@ Use the following seeded accounts to log in and test the permissions system:
     *   **Email:** `agent@company.com`
     *   **Password:** `agentpassword`
 
----
-
-## 🛠️ Key Improvements & Bug Fixes Added
-
-*   **Resolved Database Field Bug:** Removed broken SQLAlchemy methods inside Celery tasks and replaced them with standard Python UTC datetime assignments.
-*   **Upgraded Decommissioned Model:** Migrated the LLM backend from the decommissioned `llama3-70b-8192` to Groq's active `llama-3.3-70b-versatile` model.
-*   **Fixed WebSocket Session Disconnections:** Refactored the frontend chat view to bind state updates to a React reference object (`activeConvRef`), preventing state-refresh loops from closing the session.
-*   **Eliminated LLM Repetition Loops:** Converted the query pipeline from `stream_complete` to `stream_chat` with role-based message lists. Set `temperature=0.0` and refined prompt guidance to forbid meta-commentary, resolving token loop repeating issues.
-*   **Introduced Polite Conversational Greetings:** Updated system prompt parameters so the agent responds to greetings (e.g. *"hi"*, *"hello"*) naturally, while keeping grounding constraints strictly active for policy questions.
